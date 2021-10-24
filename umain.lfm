@@ -11,7 +11,6 @@ object frmMain: TfrmMain
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
-  OnDestroy = FormDestroy
   Position = poScreenCenter
   LCLVersion = '1.9.0.0'
   inline Editor: TSynEdit
@@ -953,7 +952,6 @@ object frmMain: TfrmMain
     end
     object MenuItem12: TMenuItem
       Caption = 'Edit'
-      OnClick = MenuItem12Click
       object MenuItem43: TMenuItem
         Action = actUndo
       end
@@ -1469,7 +1467,6 @@ object frmMain: TfrmMain
       Caption = 'Run'
       ImageIndex = 4
       OnExecute = actRunExecute
-      OnUpdate = actRunUpdate
       ShortCut = 120
     end
     object actFreeRun: TAction

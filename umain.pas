@@ -132,7 +132,6 @@ type
     procedure actPauseExecute(Sender: TObject);
     procedure actRefreshWatchesExecute(Sender: TObject);
     procedure actRunExecute(Sender: TObject);
-    procedure actRunUpdate(Sender: TObject);
     procedure actSaveAsAccept(Sender: TObject);
     procedure actSaveExecute(Sender: TObject);
     procedure actSaveUpdate(Sender: TObject);
@@ -151,8 +150,6 @@ type
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
-    procedure MenuItem12Click(Sender: TObject);
     procedure MenuItem18Click(Sender: TObject);
     procedure MenuItem19Click(Sender: TObject);
     procedure MenuItem20Click(Sender: TObject);
@@ -227,6 +224,8 @@ const
 
   PRINT_SEP = ' '; // (or ''?) print() separator
   MAX_TABLE_N = 32; // Max table elements to show
+  MAX_TABLE_DEPTH = 5; // Max table depth to show
+  MAX_TABLE_STRL = 512; // Max table string length
 
 var
   // Just for the scope
@@ -325,16 +324,6 @@ begin
   SynLuaSyn1.ActiveDot := True;
   Caption := Application.Title;
   ShowScriptState;
-end;
-
-procedure TfrmMain.FormDestroy(Sender: TObject);
-begin
-end;
-
-procedure TfrmMain.MenuItem12Click(Sender: TObject);
-begin
-  MenuItem13.Enabled := Editor.SelAvail;
-  MenuItem14.Enabled := Editor.SelAvail;
 end;
 
 procedure TfrmMain.MenuItem18Click(Sender: TObject);
@@ -665,8 +654,12 @@ var
 
   function TblToString(L: Plua_State; V: Integer): String;
   var
-    N: Integer;
+    N, T: Integer;
+    Si: String;
   begin
+    if V > MAX_TABLE_DEPTH then
+      Exit('(table)');
+
     Result := '{';
     N := 0;
     lua_pushnil(L);
@@ -685,17 +678,36 @@ var
 
         lua_pushvalue(L, -2);
         try
-          Result := Result + lua_tostring(L, -1) + ' => ';
+          Si := Trim(ExtractWord(1, lua_tostring(L, -1), ID_DELIMITERS));
+          Result := Result + IfThen(Si <> '', Si, '?')  + ' => ';
         finally
           lua_pop(L, 1);
         end;
         if lua_istable(L, -1) then
           Result := Result + TblToString(L, V + 1)
-        else if lua_isstring(L, -1) then
-          Result := Result + AddQuoted(lua_tostring(L, -1))
         else
-          Result := Result + lua_tostring(L, -1);
-
+        begin
+          T := lua_type(L, -1);
+          case T of
+            LUA_TSTRING:
+              Si := AddQuoted(lua_tostring(L, -1));
+            LUA_TNUMBER:
+              Si := lua_tostring(L, -1);
+            LUA_TNIL:
+              Si := 'nil';
+            LUA_TBOOLEAN:
+              if lua_toboolean(L, -1) then
+                Si := 'true' else
+                Si := 'false';
+            otherwise
+    	      Si := '(' + lua_typename(L, T) + ')';
+          end;
+          Result := Result + Si;
+        end;
+        if Length(Result) > MAX_TABLE_STRL then
+          if V > 1 then
+            Break else
+            Exit(Result + ' ...');
       finally
         lua_pop(L, 1);
       end;
@@ -837,11 +849,6 @@ end;
 procedure TfrmMain.actRunExecute(Sender: TObject);
 begin
   DoRun([]);
-end;
-
-procedure TfrmMain.actRunUpdate(Sender: TObject);
-begin
-
 end;
 
 procedure TfrmMain.actSaveAsAccept(Sender: TObject);
