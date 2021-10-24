@@ -1,24 +1,25 @@
-object frmWatches: TfrmWatches
-  Left = 457
+object frmLocals: TfrmLocals
+  Left = 413
   Height = 300
-  Top = 173
+  Top = 133
   Width = 300
   BorderStyle = bsSizeToolWin
-  Caption = 'Watch'
+  Caption = 'Local Variables'
   ClientHeight = 300
   ClientWidth = 300
   DesignTimePPI = 120
   FormStyle = fsStayOnTop
   Position = poDefaultPosOnly
   LCLVersion = '1.9.0.0'
-  object moWatches: TMemo
+  object moLocals: TMemo
     Left = 0
     Height = 300
     Top = 0
     Width = 300
     Align = alClient
-    Color = clMoneyGreen
+    Color = clCream
     ParentFont = False
+    ReadOnly = True
     ScrollBars = ssAutoBoth
     TabOrder = 0
     WordWrap = False

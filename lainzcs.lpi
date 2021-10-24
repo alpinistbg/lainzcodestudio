@@ -87,15 +87,17 @@
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="ustack.pas"/>
+        <Filename Value="ulocals.pas"/>
         <IsPartOfProject Value="True"/>
-        <ComponentName Value="frmStack"/>
+        <ComponentName Value="frmLocals"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit3>
       <Unit4>
         <Filename Value="uwatches.pas"/>
         <IsPartOfProject Value="True"/>
         <ComponentName Value="frmWatches"/>
+        <HasResources Value="True"/>
         <ResourceBaseClass Value="Form"/>
       </Unit4>
     </Units>

@@ -7,7 +7,7 @@ interface
 uses
   Classes, Forms, StdCtrls, Menus, Dialogs, Lua53, SynHighlighterLua, SynEdit,
   LCLIntF, Controls, SynGutterBase, SynEditMarks, SynEditMarkupSpecialLine,
-  Graphics, ActnList, Buttons, uwatches, ustack;
+  Graphics, ActnList, Buttons, StdActns, ExtCtrls, uwatches, ulocals, SynEditTypes;
 
 type
   TScriptState = (ssRunning, ssPaused, ssStepInto, ssStepOver, ssFreeRun);
@@ -18,8 +18,13 @@ type
 
   TfrmMain = class(TForm)
     actFreeRun: TAction;
+    actFind: TAction;
+    actFindNext: TAction;
+    actFindPrev: TAction;
+    actNew: TAction;
+    actSave: TAction;
     actRefreshWatches: TAction;
-    actShowStack: TAction;
+    actShowLocals: TAction;
     actShowWatches: TAction;
     actToggleBkpt: TAction;
     actWatch: TAction;
@@ -29,7 +34,18 @@ type
     actStepOver: TAction;
     actRun: TAction;
     ActionList1: TActionList;
+    actOpen: TFileOpen;
+    actSaveAs: TFileSaveAs;
+    cbFindWhat: TComboBox;
+    actCut: TEditCut;
+    actCopy: TEditCopy;
+    actDelete: TEditDelete;
+    actPaste: TEditPaste;
+    actSelectAll: TEditSelectAll;
+    actUndo: TEditUndo;
+    ImageList1: TImageList;
     ImageList2: TImageList;
+    lblCaretPosition: TLabel;
     lblScriptState: TLabel;
     ListBox1: TListBox;
     MainMenu1: TMainMenu;
@@ -70,37 +86,70 @@ type
     MenuItem40: TMenuItem;
     MenuItem41: TMenuItem;
     MenuItem42: TMenuItem;
+    MenuItem43: TMenuItem;
+    MenuItem44: TMenuItem;
+    MenuItem45: TMenuItem;
+    MenuItem46: TMenuItem;
+    MenuItem47: TMenuItem;
+    MenuItem48: TMenuItem;
+    MenuItem49: TMenuItem;
     MenuItem5: TMenuItem;
+    MenuItem50: TMenuItem;
     MenuItem6: TMenuItem;
     MenuItem7: TMenuItem;
     MenuItem8: TMenuItem;
     MenuItem9: TMenuItem;
-    OpenDialog1: TOpenDialog;
+    Panel1: TPanel;
+    Panel2: TPanel;
+    pnlMessages: TPanel;
+    pnlBott: TPanel;
+    pnlMenuTools: TPanel;
+    pnlSearchTools: TPanel;
+    pnlToolbar: TPanel;
     PopupMenu1: TPopupMenu;
-    SaveDialog1: TSaveDialog;
     Editor: TSynEdit;
-    SpeedButton1: TSpeedButton;
-    SpeedButton2: TSpeedButton;
-    SpeedButton3: TSpeedButton;
-    SpeedButton4: TSpeedButton;
-    SpeedButton5: TSpeedButton;
-    SpeedButton6: TSpeedButton;
+    SpeedButton10: TSpeedButton;
+    SpeedButton11: TSpeedButton;
+    SpeedButton12: TSpeedButton;
+    SpeedButton13: TSpeedButton;
+    SpeedButton14: TSpeedButton;
+    SpeedButton15: TSpeedButton;
+    SpeedButton16: TSpeedButton;
+    SpeedButton17: TSpeedButton;
+    SpeedButton18: TSpeedButton;
+    SpeedButton7: TSpeedButton;
+    SpeedButton8: TSpeedButton;
+    SpeedButton9: TSpeedButton;
+    splitMain: TSplitter;
     SynLuaSyn1: TSynLuaSyn;
+    procedure actFindExecute(Sender: TObject);
+    procedure actFindNextExecute(Sender: TObject);
+    procedure actFindPrevExecute(Sender: TObject);
+    procedure actNewExecute(Sender: TObject);
+    procedure actOpenAccept(Sender: TObject);
+    procedure actOpenBeforeExecute(Sender: TObject);
     procedure actFreeRunExecute(Sender: TObject);
     procedure actPauseExecute(Sender: TObject);
     procedure actRefreshWatchesExecute(Sender: TObject);
     procedure actRunExecute(Sender: TObject);
     procedure actRunUpdate(Sender: TObject);
-    procedure actShowStackExecute(Sender: TObject);
+    procedure actSaveAsAccept(Sender: TObject);
+    procedure actSaveExecute(Sender: TObject);
+    procedure actSaveUpdate(Sender: TObject);
+    procedure actShowLocalsExecute(Sender: TObject);
     procedure actShowWatchesExecute(Sender: TObject);
     procedure actStepIntoExecute(Sender: TObject);
     procedure actStepOverExecute(Sender: TObject);
     procedure actStopExecute(Sender: TObject);
     procedure actToggleBkptExecute(Sender: TObject);
     procedure actWatchExecute(Sender: TObject);
+    procedure cbFindWhatKeyDown(Sender: TObject; var Key: Word;
+      Shift: TShiftState);
     procedure EditorSpecialLineColors(Sender: TObject; Line: integer;
       var Special: boolean; var FG, BG: TColor);
+    procedure EditorStatusChange(Sender: TObject; Changes: TSynStatusChanges);
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure MenuItem12Click(Sender: TObject);
@@ -114,17 +163,10 @@ type
     procedure MenuItem25Click(Sender: TObject);
     procedure MenuItem26Click(Sender: TObject);
     procedure MenuItem27Click(Sender: TObject);
-    procedure MenuItem28Click(Sender: TObject);
     procedure EditorGutterClick(Sender: TObject; X, Y, Line: integer;
       mark: TSynEditMark);
-    procedure SynEditCutToClipboard(Sender: TObject);
-    procedure SynEditSelectAll(Sender: TObject);
-    procedure MenuItem2Click(Sender: TObject);
-    procedure MenuItem3Click(Sender: TObject);
     procedure MenuItem5Click(Sender: TObject);
     procedure MenuItem7Click(Sender: TObject);
-    procedure SynEditCopyToClipboard(Sender: TObject);
-    procedure SynEditPasteFromClipboard(Sender: TObject);
     procedure PopupMenu1Popup(Sender: TObject);
   private
     { private declarations }
@@ -134,6 +176,7 @@ type
     procedure ScriptFinalize(AThrStat: Integer);
     procedure CaretPos(ALine, ACol: LongInt; ACenter: Boolean = True);
     procedure ShowScriptState;
+    procedure Find(Opt: TSynSearchOptions);
 
     function BkptAtLine(ALine: LongInt): TSynEditMark;
     function HasBkptAtLine(ALine: LongInt): Boolean;
@@ -145,9 +188,15 @@ type
     procedure ShowError(AErrorMsg: String);
     function GetVarContents(AId: String): String;
     function LuaVarToString(L: Plua_State): String;
-    function GetStackContents(L: Plua_State; AVarArgs, ATemps: Boolean): String;
+    function GetLocalContents(L: Plua_State; AVarArgs, ATemps: Boolean): String;
     procedure RefreshWatches;
-    procedure RefreshStack;
+    procedure RefreshLocals;
+
+    function CheckStopped: Boolean;
+    function CheckSaved: Boolean;
+    procedure UpdateTitle;
+    procedure UpdateStatus;
+    procedure ClearAllMarks; // incl. breakponts
   public
     { public declarations }
   end;
@@ -158,7 +207,7 @@ var
 implementation
 
 uses
-  lcs_registerall, Contnrs, SysUtils, Math, StrUtils;
+  lcs_registerall, SysUtils, Math, StrUtils;
 
 {$R *.lfm}
 
@@ -340,55 +389,12 @@ begin
   Editor.InsertTextAtCaret('if () then' + LineEnding + LineEnding + 'end');
 end;
 
-procedure TfrmMain.MenuItem28Click(Sender: TObject);
-begin
-  if FileName <> '' then
-  begin
-    Editor.Lines.SaveToFile(FileName);
-  end
-  else
-  begin
-    if SaveDialog1.Execute then
-    begin
-      FileName := SaveDialog1.FileName;
-      Editor.Lines.SaveToFile(SaveDialog1.FileName);
-    end;
-  end;
-end;
-
 procedure TfrmMain.EditorGutterClick(Sender: TObject; X, Y, Line: integer;
   mark: TSynEditMark);
 begin
   ToggleBreakpoint(Line);
 end;
 
-procedure TfrmMain.SynEditCutToClipboard(Sender: TObject);
-begin
-  Editor.CutToClipboard;
-end;
-
-procedure TfrmMain.SynEditSelectAll(Sender: TObject);
-begin
-  Editor.SelectAll;
-end;
-
-procedure TfrmMain.MenuItem2Click(Sender: TObject);
-begin
-  if OpenDialog1.Execute then
-  begin
-    FileName := OpenDialog1.FileName;
-    Editor.Lines.LoadFromFile(OpenDialog1.FileName);
-  end;
-end;
-
-procedure TfrmMain.MenuItem3Click(Sender: TObject);
-begin
-  if SaveDialog1.Execute then
-  begin
-    FileName := SaveDialog1.FileName;
-    Editor.Lines.SaveToFile(SaveDialog1.FileName);
-  end;
-end;
 
 procedure TfrmMain.MenuItem5Click(Sender: TObject);
 begin
@@ -398,16 +404,6 @@ end;
 procedure TfrmMain.MenuItem7Click(Sender: TObject);
 begin
   OpenURL('https://github.com/lainz/lainzcodestudio/wiki');
-end;
-
-procedure TfrmMain.SynEditCopyToClipboard(Sender: TObject);
-begin
-  Editor.CopyToClipboard;
-end;
-
-procedure TfrmMain.SynEditPasteFromClipboard(Sender: TObject);
-begin
-  Editor.PasteFromClipboard;
 end;
 
 procedure TfrmMain.PopupMenu1Popup(Sender: TObject);
@@ -491,6 +487,12 @@ begin
     lblScriptState.Caption := 'Not running';
 end;
 
+procedure TfrmMain.Find(Opt: TSynSearchOptions);
+begin
+  if Editor.SearchReplace(cbFindWhat.Text, '', Opt) = 0 then
+    Beep;
+end;
+
 function TfrmMain.BkptAtLine(ALine: LongInt): TSynEditMark;
 var
   Marks: TSynEditMarkLine;
@@ -516,6 +518,12 @@ begin
   Result := BkptAtLine(ALine) <> Nil;
 end;
 
+procedure TfrmMain.ClearAllMarks;
+begin
+  while Editor.Marks.Count > 0 do
+    Editor.Marks.Delete(0);
+end;
+
 function TfrmMain.DoCompile: Boolean;
 begin
   ListBox1.Clear;
@@ -523,9 +531,17 @@ begin
   luaL_openlibs(Script.L);
   lua_register(Script.L, 'print', @print);
   Script.S := TStringList.Create;
+
   RegisterAll(Script.L, Script.S);
-  Script.S.Text := Script.S.Text;  // split lines
-  Script.LOfs := Script.S.Count; // offset of 1-st line
+  if 0 < luaL_dostring(Script.L, PChar(Script.S.Text)) then
+  begin
+    ShowError('RegisterAll()');
+    ScriptFinalize(0);
+    Exit;
+  end;
+
+  Script.S.Clear;
+  Script.LOfs := 0; // offset of 1-st line
   Script.S.Add(Editor.Text);
   Script.Lt := lua_newthread(Script.L); // for yield/resume
   lua_sethook(Script.Lt, @DbgHook, LUA_MASKLINE + LUA_MASKCALL + LUA_MASKRET, 0);
@@ -576,7 +592,7 @@ begin
     ScriptFinalize(stat);
   Editor.Refresh;
   RefreshWatches;
-  RefreshStack;
+  RefreshLocals;
 end;
 
 procedure TfrmMain.DoStop(AReset: Boolean);
@@ -586,8 +602,13 @@ begin
 end;
 
 procedure TfrmMain.ShowError(AErrorMsg: String);
+var
+  Pre: String;
 begin
-  ListBox1.Items.Add(Format('Line %d: ', [Script.SrcLine]) + AErrorMsg);
+  if Script.SrcLine < 1 then
+    Pre := 'Error: ' else
+    Pre := Format('Line %d: ', [Script.SrcLine]);
+  ListBox1.Items.Add(Pre + AErrorMsg);
 end;
 
 function TfrmMain.GetVarContents(AId: String): String;
@@ -703,7 +724,7 @@ begin
   Result := S;
 end;
 
-function TfrmMain.GetStackContents(L: Plua_State; AVarArgs, ATemps: Boolean
+function TfrmMain.GetLocalContents(L: Plua_State; AVarArgs, ATemps: Boolean
   ): String;
 var
   ar: lua_Debug;
@@ -762,10 +783,55 @@ begin
     end;
 end;
 
-procedure TfrmMain.RefreshStack;
+procedure TfrmMain.RefreshLocals;
 begin
-  with frmStack do
-    moStack.Text := GetStackContents(Script.Lt, True, False);
+  with frmLocals do
+    moLocals.Text := GetLocalContents(Script.Lt, True, False);
+end;
+
+function TfrmMain.CheckStopped: Boolean;
+begin
+  Result := True;
+  if Script.State * [ssRunning, ssPaused] <> [] then
+  case QuestionDlg('', 'Program is running. Do you want to stop it?',
+    mtWarning, [mrYes, 'Stop it', 'isdefault', mrCancel, 'Cancel'], 0)
+  of
+    mrCancel: Result := False;
+    mrYes: actStop.Execute;
+  end;
+end;
+
+function TfrmMain.CheckSaved: Boolean;
+begin
+  Result := True;
+  if Editor.Modified then
+    case QuestionDlg('', 'Source modified. Do you want to save changes?', mtWarning, [mrYes, 'Save',
+      'isdefault', mrNo, 'Discard changes', mrCancel, 'Cancel'], 0)
+    of
+      mrNo: ;
+      mrCancel: Result := False;
+      mrYes:
+        begin
+          if FileName <> '' then
+           actSave.Execute else
+           actSaveAs.Execute;
+          Result := FileName <> '';
+        end;
+      end;
+end;
+
+procedure TfrmMain.UpdateTitle;
+begin
+  Caption :=
+    Application.Title + ' | ' +
+    IfThen(Editor.Modified, '*') +
+    IfThen(FileName <> '', FileName, 'Noname');
+end;
+
+procedure TfrmMain.UpdateStatus;
+begin
+  lblCaretPosition.Caption := Format('Line: %d, Col: %d (%s)', [Editor.CaretY,
+    Editor.CaretX, IfThen(Editor.InsertMode, 'INS', 'OVR')]);
 end;
 
 procedure TfrmMain.actRunExecute(Sender: TObject);
@@ -778,11 +844,35 @@ begin
 
 end;
 
-procedure TfrmMain.actShowStackExecute(Sender: TObject);
+procedure TfrmMain.actSaveAsAccept(Sender: TObject);
 begin
-  if frmStack.Visible then
-    frmStack.Hide else frmStack.Show;
-  actShowStack.Checked := frmStack.Visible;
+  Editor.Lines.SaveToFile(actSaveAs.Dialog.FileName);
+  FileName := actSaveAs.Dialog.FileName;
+  Editor.Modified := False;
+  UpdateTitle; // to put the name on the title
+end;
+
+procedure TfrmMain.actSaveExecute(Sender: TObject);
+begin
+  if FileName = '' then
+    actSaveAs.Execute
+  else
+  begin
+    Editor.Lines.SaveToFile(FileName);
+    Editor.Modified := False;
+  end;
+end;
+
+procedure TfrmMain.actSaveUpdate(Sender: TObject);
+begin
+  actSave.Enabled := Editor.Modified;
+end;
+
+procedure TfrmMain.actShowLocalsExecute(Sender: TObject);
+begin
+  if frmLocals.Visible then
+    frmLocals.Hide else frmLocals.Show;
+  actShowLocals.Checked := frmLocals.Visible;
 end;
 
 procedure TfrmMain.actShowWatchesExecute(Sender: TObject);
@@ -795,6 +885,54 @@ end;
 procedure TfrmMain.actFreeRunExecute(Sender: TObject);
 begin
   DoRun([ssFreeRun]);
+end;
+
+procedure TfrmMain.actOpenBeforeExecute(Sender: TObject);
+begin
+  if not CheckStopped or not CheckSaved then
+    Abort;
+end;
+
+procedure TfrmMain.actOpenAccept(Sender: TObject);
+begin
+  Editor.Lines.LoadFromFile(actOpen.Dialog.FileName);
+  FileName := actOpen.Dialog.FileName;
+  Editor.Modified := False;
+  ClearAllMarks;
+  UpdateTitle; // to put the name on the title
+end;
+
+procedure TfrmMain.actNewExecute(Sender: TObject);
+begin
+  if CheckStopped and CheckSaved then
+  begin
+    Editor.ClearAll;
+    Editor.Lines.Text := '';
+    Editor.Modified := False;
+    FileName := '';
+    ClearAllMarks;
+    Editor.Modified := False;
+  end;
+end;
+
+procedure TfrmMain.actFindExecute(Sender: TObject);
+var
+  S: String;
+begin
+  S := Editor.SelText;
+  if S <> '' then
+    cbFindWhat.Text := S;
+  cbFindWhat.SetFocus;
+end;
+
+procedure TfrmMain.actFindNextExecute(Sender: TObject);
+begin
+  Find([]);
+end;
+
+procedure TfrmMain.actFindPrevExecute(Sender: TObject);
+begin
+  Find([ssoBackwards]);
 end;
 
 procedure TfrmMain.actPauseExecute(Sender: TObject);
@@ -855,6 +993,13 @@ begin
   end;
 end;
 
+procedure TfrmMain.cbFindWhatKeyDown(Sender: TObject; var Key: Word;
+  Shift: TShiftState);
+begin
+  if Key = 13 then
+    actFindNext.Execute;
+end;
+
 procedure TfrmMain.EditorSpecialLineColors(Sender: TObject; Line: integer;
   var Special: boolean; var FG, BG: TColor);
 begin
@@ -881,10 +1026,26 @@ begin
     Special := False;
 end;
 
+procedure TfrmMain.EditorStatusChange(Sender: TObject;
+  Changes: TSynStatusChanges);
+begin
+  if [scCaretX, scCaretY, scInsertMode] * Changes <> [] then
+    UpdateStatus;
+  if scModified in Changes then
+  begin
+    UpdateTitle;
+  end;
+end;
+
 procedure TfrmMain.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
   if ssRunning in Script.State then
     ScriptFinalize(0);
+end;
+
+procedure TfrmMain.FormCloseQuery(Sender: TObject; var CanClose: boolean);
+begin
+  CanClose := CheckStopped and CheckSaved;
 end;
 
 end.

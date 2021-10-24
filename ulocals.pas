@@ -1,4 +1,4 @@
-unit ustack;
+unit ulocals;
 
 {$mode objfpc}{$H+}
 
@@ -9,10 +9,10 @@ uses
 
 type
 
-  { TfrmStack }
+  { TfrmLocals }
 
-  TfrmStack = class(TForm)
-    moStack: TMemo;
+  TfrmLocals = class(TForm)
+    moLocals: TMemo;
   private
 
   public
@@ -20,7 +20,7 @@ type
   end;
 
 var
-  frmStack: TfrmStack;
+  frmLocals: TfrmLocals;
 
 implementation
 
