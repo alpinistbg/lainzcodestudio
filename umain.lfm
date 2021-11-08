@@ -19,10 +19,12 @@ object frmMain: TfrmMain
     Top = 54
     Width = 1000
     Align = alClient
-    Font.Height = -16
-    Font.Name = 'Courier New'
+    Font.CharSet = RUSSIAN_CHARSET
+    Font.Color = clBlack
+    Font.Height = -18
+    Font.Name = 'Consolas'
     Font.Pitch = fpFixed
-    Font.Quality = fqCleartypeNatural
+    Font.Quality = fqDraft
     ParentColor = False
     ParentFont = False
     PopupMenu = PopupMenu1
@@ -458,8 +460,72 @@ object frmMain: TfrmMain
     MouseTextActions = <>
     MouseSelActions = <>
     Lines.Strings = (
+      'rows = {'
+      '    {to = "2h", price = 1},'
+      '    {to = "6h", price = 4},'
+      '    {to = "1h", price = 0}'
+      '}'
+      ''
+      '-- for i, v in pairs(rows) do'
+      '--     print(v.to, "=", v.price)'
+      '--     for j, u in pairs(v) do'
+      '--         --print(j, ''= '', u)'
+      '--     end'
+      '-- end'
+      ''
+      'table.sort('
+      '    rows,'
+      '    function(l, r)'
+      '        return l.to < r.to'
+      '    end'
+      ')'
+      ''
+      'for i = #rows, 1, -1 do'
+      '    print(rows[i].to)'
+      'end'
+      ''
+      'function durfromstr(s) '
+      '  local r=0'
+      '  for n in s:gmatch("([1-9]%d-)s") do'
+      '    --print(n.."s")'
+      '    r = r + tonumber(n)'
+      '  end'
+      '  for n in s:gmatch("([1-9]%d-)m") do'
+      '    --print(n.."m")'
+      '    r = r + tonumber(n) * 60'
+      '  end'
+      '  for n in s:gmatch("([1-9]%d-)h") do'
+      '    --print(n.."h")'
+      '    r = r + tonumber(n) * 3600'
+      '  end'
+      '  for n in s:gmatch("([1-9]%d-)d") do'
+      '    --print(n.."d")'
+      '    r = r + tonumber(n) * 3600 * 24'
+      '  end'
+      '  for n in s:gmatch("([1-9]%d-)w") do'
+      '    --print(n.."w")'
+      '    r = r + tonumber(n) * 3600 * 24 * 7'
+      '  end'
+      '  return r'
+      'end  '
+      ''
+      'tx = durfromstr("1d1h56s")'
+      't1 = os.time() + tx'
+      'print(os.date(_,t1), os.date(_, os.time() - 2 * tx))'
+      ''
+      'd1 = os.date("*t")'
+      'd2 = os.date("!*t")'
+      't1 = os.time(d1)'
+      't2 = os.time(d2)'
+      't3 = os.time()'
+      ''
+      'print(t1, t2, t3, os.difftime(t1, t2), t1 - t2)'
+      ''
+      'print(1, nil, 2, true, 3, rows)'
+      ''
       ''
     )
+    MouseOptions = [emCtrlWheelZoom]
     VisibleSpecialChars = [vscSpace, vscTabAtLast]
     SelectedColor.BackPriority = 50
     SelectedColor.ForePriority = 50
@@ -1087,16 +1153,16 @@ object frmMain: TfrmMain
     Left = 826
     Top = 316
     object MenuItem10: TMenuItem
-      Caption = 'Cut'
+      Action = actCut
     end
     object MenuItem8: TMenuItem
-      Caption = 'Copy'
+      Action = actCopy
     end
     object MenuItem9: TMenuItem
-      Caption = 'Paste'
+      Action = actPaste
     end
     object MenuItem11: TMenuItem
-      Caption = 'Select All'
+      Action = actSelectAll
     end
   end
   object ImageList2: TImageList

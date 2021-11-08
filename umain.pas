@@ -622,9 +622,6 @@ begin
 end;
 
 function TfrmMain.LuaVarToString(L: Plua_State): String;
-var
-  T: Integer;
-  S: String;
 
   function AddQuoted(S: String): String;
   var
@@ -652,10 +649,33 @@ var
     Result := Result + '"';
   end;
 
-  function TblToString(L: Plua_State; V: Integer): String;
+  function VarToStr(L: Plua_State): String;
+  var
+    T: Integer;
+    S: String;
+  begin
+    T := lua_type(L, -1);
+    case T of
+      LUA_TSTRING:
+        S := AddQuoted(lua_tostring(L, -1));
+      LUA_TNUMBER:
+        S := lua_tostring(L, -1);
+      LUA_TNIL:
+        S := 'nil';
+      LUA_TBOOLEAN:
+        if lua_toboolean(L, -1) then
+          S := 'true' else
+          S := 'false';
+      otherwise
+        S := '(' + lua_typename(L, T) + ')';
+    end;
+    Result := S;
+  end;
+
+  function TblToStr(L: Plua_State; V: Integer): String;
   var
     N, T: Integer;
-    Si: String;
+    S: String;
   begin
     if V > MAX_TABLE_DEPTH then
       Exit('(table)');
@@ -678,32 +698,14 @@ var
 
         lua_pushvalue(L, -2);
         try
-          Si := Trim(ExtractWord(1, lua_tostring(L, -1), ID_DELIMITERS));
-          Result := Result + IfThen(Si <> '', Si, '?')  + ' => ';
+          S := Trim(ExtractWord(1, lua_tostring(L, -1), ID_DELIMITERS));
+          Result := Result + IfThen(S <> '', S, '?')  + ' => ';
         finally
           lua_pop(L, 1);
         end;
         if lua_istable(L, -1) then
-          Result := Result + TblToString(L, V + 1)
-        else
-        begin
-          T := lua_type(L, -1);
-          case T of
-            LUA_TSTRING:
-              Si := AddQuoted(lua_tostring(L, -1));
-            LUA_TNUMBER:
-              Si := lua_tostring(L, -1);
-            LUA_TNIL:
-              Si := 'nil';
-            LUA_TBOOLEAN:
-              if lua_toboolean(L, -1) then
-                Si := 'true' else
-                Si := 'false';
-            otherwise
-    	      Si := '(' + lua_typename(L, T) + ')';
-          end;
-          Result := Result + Si;
-        end;
+          Result := Result + TblToStr(L, V + 1) else
+          Result := Result + VarToStr(L);
         if Length(Result) > MAX_TABLE_STRL then
           if V > 1 then
             Break else
@@ -716,24 +718,9 @@ var
 
 begin
   Result := '';
-  T := lua_type(L, -1);
-  case T of
-    LUA_TSTRING:
-      S := AddQuoted(lua_tostring(L, -1));
-    LUA_TNUMBER:
-      S := lua_tostring(L, -1);
-    LUA_TNIL:
-      S := 'nil';
-    LUA_TBOOLEAN:
-      if lua_toboolean(L, -1) then
-        S := 'true' else
-        S := 'false';
-    LUA_TTABLE:
-        S := TblToString(L, 1);
-    otherwise
-      S := '(' + lua_typename(L, T) + ')';
-  end;
-  Result := S;
+  if lua_istable(L, -1) then
+    Result := TblToStr(L, 1) else
+    Result := VarToStr(L);
 end;
 
 function TfrmMain.GetLocalContents(L: Plua_State; AVarArgs, ATemps: Boolean
