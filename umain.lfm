@@ -1,12 +1,11 @@
 object frmMain: TfrmMain
   Left = 482
-  Height = 750
+  Height = 600
   Top = 84
-  Width = 1000
+  Width = 800
   Caption = 'Lainz Code Studio'
-  ClientHeight = 725
-  ClientWidth = 1000
-  DesignTimePPI = 120
+  ClientHeight = 578
+  ClientWidth = 800
   Menu = MainMenu1
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
@@ -15,13 +14,13 @@ object frmMain: TfrmMain
   LCLVersion = '1.9.0.0'
   inline Editor: TSynEdit
     Left = 0
-    Height = 486
-    Top = 54
-    Width = 1000
+    Height = 384
+    Top = 46
+    Width = 800
     Align = alClient
     Font.CharSet = RUSSIAN_CHARSET
     Font.Color = clBlack
-    Font.Height = -18
+    Font.Height = -14
     Font.Name = 'Consolas'
     Font.Pitch = fpFixed
     Font.Quality = fqDraft
@@ -30,7 +29,7 @@ object frmMain: TfrmMain
     PopupMenu = PopupMenu1
     TabOrder = 0
     BookMarkOptions.BookmarkImages = ImageList2
-    Gutter.Width = 80
+    Gutter.Width = 60
     Gutter.MouseActions = <>
     RightGutter.Width = 0
     RightGutter.MouseActions = <>
@@ -525,6 +524,7 @@ object frmMain: TfrmMain
       ''
       ''
     )
+    Options = [eoAutoIndent, eoBracketHighlight, eoGroupUndo, eoScrollPastEol, eoSmartTabs, eoTabIndent, eoTabsToSpaces, eoTrimTrailingSpaces]
     MouseOptions = [emCtrlWheelZoom]
     VisibleSpecialChars = [vscSpace, vscTabAtLast]
     SelectedColor.BackPriority = 50
@@ -550,11 +550,11 @@ object frmMain: TfrmMain
     OnStatusChange = EditorStatusChange
     inline SynLeftGutterPartList1: TSynGutterPartList
       object SynGutterMarks1: TSynGutterMarks
-        Width = 30
+        Width = 24
         MouseActions = <>
       end
       object SynGutterLineNumber1: TSynGutterLineNumber
-        Width = 26
+        Width = 17
         MouseActions = <>
         MarkupInfo.Background = clBtnFace
         MarkupInfo.Foreground = clNone
@@ -564,20 +564,20 @@ object frmMain: TfrmMain
         LeadingZeros = False
       end
       object SynGutterChanges1: TSynGutterChanges
-        Width = 5
+        Width = 4
         MouseActions = <>
         ModifiedColor = 59900
         SavedColor = clGreen
       end
       object SynGutterSeparator1: TSynGutterSeparator
-        Width = 3
+        Width = 2
         MouseActions = <>
         MarkupInfo.Background = clWhite
         MarkupInfo.Foreground = clGray
       end
       object SynGutterCodeFolding1: TSynGutterCodeFolding
         AutoSize = False
-        Width = 16
+        Width = 13
         MouseActions = <>
         MarkupInfo.Background = clNone
         MarkupInfo.Foreground = clGray
@@ -588,12 +588,12 @@ object frmMain: TfrmMain
   end
   object pnlBott: TPanel
     Left = 0
-    Height = 36
-    Top = 689
-    Width = 1000
+    Height = 29
+    Top = 549
+    Width = 800
     Align = alBottom
-    ClientHeight = 36
-    ClientWidth = 1000
+    ClientHeight = 29
+    ClientWidth = 800
     ParentFont = False
     TabOrder = 1
     object lblCaretPosition: TLabel
@@ -601,13 +601,13 @@ object frmMain: TfrmMain
       AnchorSideTop.Side = asrCenter
       AnchorSideRight.Control = pnlBott
       AnchorSideRight.Side = asrBottom
-      Left = 919
-      Height = 20
-      Top = 8
-      Width = 70
+      Left = 724
+      Height = 16
+      Top = 6
+      Width = 67
       Alignment = taRightJustify
       Anchors = [akTop, akRight]
-      BorderSpacing.Right = 10
+      BorderSpacing.Right = 8
       Caption = 'Line: , Col: '
       ParentColor = False
       ParentFont = False
@@ -616,11 +616,11 @@ object frmMain: TfrmMain
       AnchorSideLeft.Control = pnlBott
       AnchorSideTop.Control = pnlBott
       AnchorSideTop.Side = asrCenter
-      Left = 11
-      Height = 30
-      Top = 3
-      Width = 30
-      BorderSpacing.Left = 10
+      Left = 9
+      Height = 24
+      Top = 2
+      Width = 24
+      BorderSpacing.Left = 8
       Flat = True
       Glyph.Data = {
         36040000424D3604000000000000360000002800000010000000100000000100
@@ -660,16 +660,17 @@ object frmMain: TfrmMain
       }
       Visible = False
       ShowCaption = False
+      ParentFont = False
     end
     object lblScriptState: TLabel
       AnchorSideLeft.Control = pnlBott
       AnchorSideTop.Control = pnlBott
       AnchorSideTop.Side = asrCenter
-      Left = 11
-      Height = 20
-      Top = 8
-      Width = 89
-      BorderSpacing.Left = 10
+      Left = 9
+      Height = 16
+      Top = 6
+      Width = 76
+      BorderSpacing.Left = 8
       Caption = 'lblScriptState'
       ParentColor = False
       ParentFont = False
@@ -678,29 +679,29 @@ object frmMain: TfrmMain
   object splitMain: TSplitter
     Cursor = crVSplit
     Left = 0
-    Height = 8
-    Top = 540
-    Width = 1000
+    Height = 6
+    Top = 430
+    Width = 800
     Align = alBottom
     Beveled = True
     ResizeAnchor = akBottom
   end
   object pnlToolbar: TPanel
     Left = 0
-    Height = 54
+    Height = 46
     Top = 0
-    Width = 1000
+    Width = 800
     Align = alTop
     AutoSize = True
-    ClientHeight = 54
-    ClientWidth = 1000
+    ClientHeight = 46
+    ClientWidth = 800
     ParentFont = False
     TabOrder = 3
     object pnlMenuTools: TPanel
       Left = 1
-      Height = 52
+      Height = 44
       Top = 1
-      Width = 502
+      Width = 412
       Align = alLeft
       AutoSize = True
       BevelOuter = bvNone
@@ -710,173 +711,173 @@ object frmMain: TfrmMain
       ChildSizing.EnlargeVertical = crsHomogenousSpaceResize
       ChildSizing.Layout = cclLeftToRightThenTopToBottom
       ChildSizing.ControlsPerLine = 99
-      ClientHeight = 52
-      ClientWidth = 502
+      ClientHeight = 44
+      ClientWidth = 412
       ParentFont = False
       TabOrder = 0
       object SpeedButton7: TSpeedButton
         Left = 15
-        Height = 40
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actNew
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object SpeedButton8: TSpeedButton
-        Left = 57
-        Height = 40
+        Left = 49
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actOpen
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object SpeedButton9: TSpeedButton
-        Left = 99
-        Height = 40
+        Left = 83
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actSave
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object Panel1: TPanel
-        Left = 141
-        Height = 40
+        Left = 117
+        Height = 32
         Top = 6
-        Width = 25
+        Width = 20
         BevelOuter = bvNone
-        Constraints.MinWidth = 25
+        Constraints.MinWidth = 20
         ParentFont = False
         TabOrder = 0
       end
       object SpeedButton10: TSpeedButton
-        Left = 168
-        Height = 40
+        Left = 139
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actRun
         AutoSize = True
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object SpeedButton11: TSpeedButton
-        Left = 210
-        Height = 40
+        Left = 173
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actPause
         AutoSize = True
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object SpeedButton13: TSpeedButton
-        Left = 252
-        Height = 40
+        Left = 207
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actStepInto
         AutoSize = True
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object SpeedButton14: TSpeedButton
-        Left = 294
-        Height = 40
+        Left = 241
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actStepOver
         AutoSize = True
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object SpeedButton15: TSpeedButton
-        Left = 336
-        Height = 40
+        Left = 275
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actStop
         AutoSize = True
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object Panel2: TPanel
-        Left = 378
-        Height = 40
+        Left = 309
+        Height = 32
         Top = 6
-        Width = 25
+        Width = 20
         BevelOuter = bvNone
-        Constraints.MinWidth = 25
+        Constraints.MinWidth = 20
         ParentFont = False
         TabOrder = 1
       end
       object SpeedButton16: TSpeedButton
-        Left = 405
-        Height = 40
+        Left = 331
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actToggleBkpt
         AutoSize = True
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
       end
       object SpeedButton17: TSpeedButton
-        Left = 447
-        Height = 40
+        Left = 365
+        Height = 32
         Top = 6
-        Width = 40
+        Width = 32
         Action = actWatch
         AutoSize = True
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 40
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 40
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 32
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 32
         Flat = True
         ShowCaption = False
         ParentFont = False
@@ -884,29 +885,29 @@ object frmMain: TfrmMain
     end
     object pnlSearchTools: TPanel
       Left = 698
-      Height = 52
+      Height = 44
       Top = 1
-      Width = 301
+      Width = 101
       Align = alRight
       Anchors = [akTop, akLeft, akRight, akBottom]
       BevelOuter = bvNone
       ChildSizing.TopBottomSpacing = 6
-      ClientHeight = 52
-      ClientWidth = 301
+      ClientHeight = 44
+      ClientWidth = 101
       ParentFont = False
       TabOrder = 1
       object cbFindWhat: TComboBox
         AnchorSideTop.Control = pnlSearchTools
         AnchorSideTop.Side = asrCenter
         AnchorSideRight.Control = SpeedButton18
-        Left = 28
-        Height = 28
-        Top = 12
-        Width = 220
+        Left = -118
+        Height = 24
+        Top = 10
+        Width = 176
         Anchors = [akTop, akRight]
-        BorderSpacing.Right = 6
-        Constraints.MinWidth = 220
-        ItemHeight = 20
+        BorderSpacing.Right = 5
+        Constraints.MinWidth = 176
+        ItemHeight = 16
         OnKeyDown = cbFindWhatKeyDown
         ParentFont = False
         TabOrder = 0
@@ -916,18 +917,18 @@ object frmMain: TfrmMain
         AnchorSideTop.Side = asrCenter
         AnchorSideRight.Control = pnlSearchTools
         AnchorSideRight.Side = asrBottom
-        Left = 254
-        Height = 40
+        Left = 63
+        Height = 32
         Top = 6
-        Width = 32
+        Width = 26
         Action = actFindNext
         Anchors = [akTop, akRight]
         AutoSize = True
-        BorderSpacing.Right = 15
-        Constraints.MaxHeight = 40
-        Constraints.MaxWidth = 32
-        Constraints.MinHeight = 40
-        Constraints.MinWidth = 32
+        BorderSpacing.Right = 12
+        Constraints.MaxHeight = 32
+        Constraints.MaxWidth = 26
+        Constraints.MinHeight = 32
+        Constraints.MinWidth = 26
         Flat = True
         ShowCaption = False
         ParentFont = False
@@ -936,19 +937,20 @@ object frmMain: TfrmMain
   end
   object pnlMessages: TPanel
     Left = 0
-    Height = 141
-    Top = 548
-    Width = 1000
+    Height = 113
+    Top = 436
+    Width = 800
     Align = alBottom
     BevelOuter = bvNone
-    ClientHeight = 141
-    ClientWidth = 1000
+    ClientHeight = 113
+    ClientWidth = 800
+    ParentFont = False
     TabOrder = 4
     object ListBox1: TListBox
       Left = 0
-      Height = 141
+      Height = 113
       Top = 0
-      Width = 1000
+      Width = 800
       Align = alClient
       ItemHeight = 0
       ParentFont = False
@@ -991,12 +993,12 @@ object frmMain: TfrmMain
     Entity = False
     DollarVariables = False
     ActiveDot = False
-    Left = 760
-    Top = 70
+    Left = 608
+    Top = 56
   end
   object MainMenu1: TMainMenu
-    Left = 620
-    Top = 70
+    Left = 496
+    Top = 56
     object MenuItem1: TMenuItem
       Caption = 'File'
       object MenuItem2: TMenuItem
@@ -1150,8 +1152,8 @@ object frmMain: TfrmMain
   end
   object PopupMenu1: TPopupMenu
     OnPopup = PopupMenu1Popup
-    Left = 826
-    Top = 316
+    Left = 661
+    Top = 253
     object MenuItem10: TMenuItem
       Action = actCut
     end
@@ -1166,8 +1168,8 @@ object frmMain: TfrmMain
     end
   end
   object ImageList2: TImageList
-    Left = 589
-    Top = 299
+    Left = 471
+    Top = 239
     Bitmap = {
       4C690B0000001000000010000000000000000000000000000000C6834F01C582
       4F38C3814E9EC07F4DDDBD7D4CFFB97B4BFFB6794ADDB277499EAF754838AC73
@@ -1526,8 +1528,8 @@ object frmMain: TfrmMain
   end
   object ActionList1: TActionList
     Images = ImageList1
-    Left = 716
-    Top = 298
+    Left = 573
+    Top = 238
     object actRun: TAction
       Category = 'Run'
       Caption = 'Run'
@@ -1695,8 +1697,8 @@ object frmMain: TfrmMain
   object ImageList1: TImageList
     Height = 24
     Width = 24
-    Left = 498
-    Top = 297
+    Left = 398
+    Top = 238
     Bitmap = {
       4C690E0000001800000018000000000000000000000000000000000000000000
       0000005CCEFF0000000000000000000000000000000000000000000000000000
