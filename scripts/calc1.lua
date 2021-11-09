@@ -88,7 +88,11 @@ function start_of_day(tm)
 end
 
 function start_of_week(tm)
-  return tm
+  local t = os.date("*t", tm)
+  --1 2 3 4 5 6 7
+  --6 0 1 2 3 4 5
+  t.day, t.hour, t.min, t.sec = t.day - (t.wday + 5) % 7, 0, 0, 0
+  return os.time(t)
 end
 
 -- cyc - 1 for a daily split, !=1 for weekly
@@ -280,6 +284,8 @@ c99 = {
   }
 }
 
+clock0 = os.clock()
+
 zzz1=extract_intervals(1, str2secs("9h"), str2secs("17h"), entry_exit)
 zzz2=extract_intervals(1, str2secs("17h"), str2secs("9h"), entry_exit)
 
@@ -287,18 +293,36 @@ zzz2=extract_intervals(1, str2secs("17h"), str2secs("9h"), entry_exit)
 --  print(os.date("%Y-%m-%d %X", v[1]), os.date("%Y-%m-%d %X", v[2]))
 --end
 
-results1 = {}
-ppp = calcul(entry_exit[1], entry_exit[2], c99, {}, results1)
-
-for _,v in ipairs(results1) do
-  print(
-    os.date("%Y-%m-%d %X", v.from),'-',os.date("%Y-%m-%d %X", v.to),
-    '     price=', v.price, '   ', v.base,'+', v.add, '   ', v.desc
-    )
+for i = 1,1000 do
+  results1 = {}
+  ppp = calcul(entry_exit[1], entry_exit[2], c99, {}, results1)
 end
+clock0 = os.clock() - clock0
+
+-- for _,v in ipairs(results1) do
+--   print(
+--     os.date("%Y-%m-%d %X", v.from),'-',os.date("%Y-%m-%d %X", v.to),
+--     '     price=', v.price, '   ', v.base,'+', v.add, '   ', v.desc
+--     )
+-- end
 
 print('price=', ppp)
 
-print()
+print(os.date("%Y-%m-%d %X", start_of_week(entry_exit[1][1])))
+print(os.date("%Y-%m-%d %X", start_of_week(entry_exit[1][2])))
+
+dt=os.time{year=2021, month=10, day=8, hour=12, min = 43}
+
+for i = 1,25 do
+  print(os.date("%Y-%m-%d %X", dt), os.date("%Y-%m-%d %X", start_of_week(dt)))
+  dt = dt + 60*60*24
+end
+
+print(clock0)
+
+
+
+
+
 
 
