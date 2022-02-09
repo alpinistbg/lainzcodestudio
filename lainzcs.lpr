@@ -7,7 +7,8 @@ uses
   cthreads,
   {$ENDIF}{$ENDIF}
   Interfaces, // this includes the LCL widgetset
-  Forms, umain, uhighdpi, lcs_debugform, lcs_dialog_input, ulocals, uwatches;
+  Forms, umain, uhighdpi, lcs_debugform, lcs_dialog_input, ulocals, uwatches,
+  luascript, test_a_json;
 
 {$R *.res}
 

@@ -6,14 +6,11 @@ interface
 
 uses
   Classes, Forms, StdCtrls, Menus, Dialogs, Lua53, SynHighlighterLua, SynEdit,
-  LCLIntF, Controls, SynGutterBase, SynEditMarks, SynEditMarkupSpecialLine,
-  Graphics, ActnList, Buttons, StdActns, ExtCtrls, uwatches, ulocals, SynEditTypes;
+  LCLIntF, Controls, SynEditMarks,
+  Graphics, ActnList, Buttons, StdActns, ExtCtrls, SynEditTypes,
+  uwatches, ulocals, luascript;
 
 type
-  TScriptState = (ssRunning, ssPaused, ssStepInto, ssStepOver, ssFreeRun);
-  TScriptStates = set of TScriptState;
-  TScriptDbgStates = set of ssStepInto..ssFreeRun;
-
   { TfrmMain }
 
   TfrmMain = class(TForm)
@@ -150,6 +147,7 @@ type
     procedure FormClose(Sender: TObject; var CloseAction: TCloseAction);
     procedure FormCloseQuery(Sender: TObject; var CanClose: boolean);
     procedure FormCreate(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
     procedure MenuItem18Click(Sender: TObject);
     procedure MenuItem19Click(Sender: TObject);
     procedure MenuItem20Click(Sender: TObject);
@@ -175,17 +173,20 @@ type
     procedure ShowScriptState;
     procedure Find(Opt: TSynSearchOptions);
 
+    procedure LuaResume(Sender: TObject);
+    procedure LuaPaused(Sender: TObject);
+    procedure LuaFinalized(Sender: TObject);
+    procedure LuaBeforeHook(Sender: TObject);
+    procedure LuaError(Sender: TObject; AtLine: LongInt; AMsg: String);
+    procedure LuaHookLine(Sender: TObject; AtLine: LongInt; var HasBrkpt: Boolean);
+    procedure LuaPrint(Sender: TObject; AMsg: String);
+
     function BkptAtLine(ALine: LongInt): TSynEditMark;
-    function HasBkptAtLine(ALine: LongInt): Boolean;
 
     function DoCompile: Boolean;
     procedure DoRun(AStep: TScriptDbgStates);
     procedure DoResume(AStep: TScriptDbgStates);
     procedure DoStop(AReset: Boolean);
-    procedure ShowError(AErrorMsg: String);
-    function GetVarContents(AId: String): String;
-    function LuaVarToString(L: Plua_State): String;
-    function GetLocalContents(L: Plua_State; AVarArgs, ATemps: Boolean): String;
     procedure RefreshWatches;
     procedure RefreshLocals;
 
@@ -204,16 +205,11 @@ var
 implementation
 
 uses
-  lcs_registerall, SysUtils, Math, StrUtils;
+  SysUtils, StrUtils;
 
 {$R *.lfm}
 
 const
-  // Identifier characters
-  ID_FIRST = ['A'..'Z', 'a'..'z', '_'];
-  ID_SYMBOL = ID_FIRST + ['0'..'9'];
-  ID_DELIMITERS = [#9..#127] - ID_SYMBOL;
-
   // Special line colors
   FG_ACTIVE = clWhite;
   BG_ACTIVE = clBlue;
@@ -222,100 +218,10 @@ const
   FG_ACTIVE_ON_BKPT = clWhite;
   BG_ACTIVE_ON_BKPT = clMaroon;
 
-  PRINT_SEP = ' '; // (or ''?) print() separator
-  MAX_TABLE_N = 32; // Max table elements to show
-  MAX_TABLE_DEPTH = 5; // Max table depth to show
-  MAX_TABLE_STRL = 512; // Max table string length
-
 var
-  // Just for the scope
-  Script: record
-    State: TScriptStates;
-    StopRq, ResetRq: Boolean;
-    L, Lt: Plua_State;
-    LOfs, SrcLine, CallDepth, ReqDepth: LongInt;
-    S: TStringList;
-  end;
+  Script: TLuaScript;
 
 { TfrmMain }
-
-function Alloc({%H-}ud, ptr: Pointer; {%H-}osize, nsize: size_t): Pointer; cdecl;
-begin
-  try
-    Result := ptr;
-    ReallocMem(Result, nSize);
-  except
-    Result := nil;
-  end;
-end;
-
-procedure DbgHook(L: Plua_State; ar: Plua_Debug); cdecl;
-var
-  MustYield, AtBkpt: Boolean;
-begin
-  Application.ProcessMessages;
-  MustYield := False;
-  case ar^.event of
-    LUA_HOOKCALL:
-      Inc(Script.CallDepth);
-    LUA_HOOKRET:
-      Dec(Script.CallDepth);
-    LUA_HOOKLINE:
-      begin
-        Script.SrcLine := ar^.currentline - Script.LOfs;
-        MustYield := Script.StopRq or Script.ResetRq;
-        if
-          not MustYield and
-          not (ssFreeRun in Script.State) and
-          (Script.SrcLine > 0)
-        then
-        begin
-          AtBkpt := frmMain.HasBkptAtLine(Script.SrcLine);
-          if (ssStepOver in Script.State) then
-            MustYield := (Script.CallDepth <= Script.ReqDepth) or AtBkpt
-          else
-            MustYield := (ssStepInto in Script.State) or AtBkpt;
-        end;
-      end;
-  end;
-  if MustYield and lua_isyieldable(L) then
-    lua_yield(L, 0);
-end;
-
-function StackToStr(L: Plua_State; ASep: String): String;
-var
-  I, N, T: Integer;
-  S, Si: String;
-begin
-  S := '';
-  N := lua_gettop(L);
-  for I := 1 to N do
-  begin
-    T := lua_type(L, I);
-    case T of
-      LUA_TSTRING, LUA_TNUMBER:
-        Si := lua_tostring(L, I);
-      LUA_TNIL:
-        Si := 'nil';
-      LUA_TBOOLEAN:
-        if lua_toboolean(L, I) then
-          Si := 'true' else
-          Si := 'false';
-      otherwise
-    	Si := '(' + lua_typename(L, T) + ')';
-    end;
-    if S = '' then
-      S := Si else
-      S := S + ASep + Si;
-  end;
-  Result := S;
-end;
-
-function print(L: Plua_State): Integer; cdecl;
-begin
-  frmMain.ListBox1.Items.AddText(StackToStr(L, PRINT_SEP));
-  Result := 0;
-end;
 
 procedure TfrmMain.FormCreate(Sender: TObject);
 begin
@@ -323,7 +229,22 @@ begin
   ListBox1.Font.Height := Canvas.GetTextHeight('Fpc');
   SynLuaSyn1.ActiveDot := True;
   Caption := Application.Title;
+
+  Script := TLuaScript.Create;
+  Script.OnBeforeHook := @LuaBeforeHook;
+  Script.OnHookLine := @LuaHookLine;
+  Script.OnLuaError := @LuaError;
+  Script.OnPaused := @LuaPaused;
+  Script.OnPrint := @LuaPrint;
+  Script.OnResume := @LuaResume;
+  Script.OnFinalized := @LuaFinalized;
+
   ShowScriptState;
+end;
+
+procedure TfrmMain.FormDestroy(Sender: TObject);
+begin
+  Script.Free;
 end;
 
 procedure TfrmMain.MenuItem18Click(Sender: TObject);
@@ -427,14 +348,7 @@ end;
 
 procedure TfrmMain.ScriptFinalize(AThrStat: Integer);
 begin
-  Script.State := [];
-  Script.StopRq := False;
-  Script.ResetRq := False;
-  if LUA_YIELD_ < AThrStat then
-    ShowError(lua_tostring(Script.Lt, -1));
-  Script.SrcLine := -1;
-  lua_close(Script.L);
-  Script.S.Free;
+  Script.Finalize(AThrStat);
   ShowScriptState;
   Editor.Refresh;
 end;
@@ -451,26 +365,20 @@ begin
 end;
 
 procedure TfrmMain.ShowScriptState;
-var
-  Running, Paused, FreeRun: Boolean;
 begin
-  Running := (ssRunning in Script.State);
-  Paused := (ssPaused in Script.State);
-  FreeRun := (ssFreeRun in Script.State);
+  actRun.Enabled := not Script.IsRunning or Script.IsPaused;
+  actFreeRun.Enabled := not  Script.IsRunning or Script.IsPaused;
+  actPause.Enabled :=  Script.IsRunning and not Script.IsPaused;
+  actStop.Enabled :=  Script.IsRunning;
 
-  actRun.Enabled := not Running or Paused;
-  actFreeRun.Enabled := not Running or Paused;
-  actPause.Enabled := Running and not Paused;
-  actStop.Enabled := Running;
+  actStepInto.Enabled := not Script.IsFreeRunning;
+  actStepOver.Enabled := not Script.IsFreeRunning;
 
-  actStepInto.Enabled := not FreeRun;
-  actStepOver.Enabled := not FreeRun;
-
-  if Paused then
-    lblScriptState.Caption := Format('Paused at line %d', [script.SrcLine])
-  else if FreeRun then
+  if Script.IsPaused then
+    lblScriptState.Caption := Format('Paused at line %d', [Script.SrcLine])
+  else if Script.IsFreeRunning then
     lblScriptState.Caption := 'Running (no brkpt)...'
-  else if Running then
+  else if Script.IsRunning then
     lblScriptState.Caption := 'Running...'
   else
     lblScriptState.Caption := 'Not running';
@@ -480,6 +388,49 @@ procedure TfrmMain.Find(Opt: TSynSearchOptions);
 begin
   if Editor.SearchReplace(cbFindWhat.Text, '', Opt) = 0 then
     Beep;
+end;
+
+procedure TfrmMain.LuaResume(Sender: TObject);
+begin
+  ShowScriptState
+end;
+
+procedure TfrmMain.LuaPaused(Sender: TObject);
+begin
+  CaretPos(Script.SrcLine, 1);
+  ShowScriptState;
+end;
+
+procedure TfrmMain.LuaFinalized(Sender: TObject);
+begin
+  ShowScriptState;
+  Editor.Refresh;
+end;
+
+procedure TfrmMain.LuaBeforeHook(Sender: TObject);
+begin
+  Application.ProcessMessages;
+end;
+
+procedure TfrmMain.LuaError(Sender: TObject; AtLine: LongInt; AMsg: String);
+var
+  Pre: String;
+begin
+  if AtLine < 1 then
+    Pre := 'Error: ' else
+    Pre := Format('Line %d: ', [Script.SrcLine]);
+  ListBox1.Items.Add(Pre + AMsg);
+end;
+
+procedure TfrmMain.LuaHookLine(Sender: TObject; AtLine: LongInt;
+  var HasBrkpt: Boolean);
+begin
+  HasBrkpt := BkptAtLine(AtLine) <> Nil;
+end;
+
+procedure TfrmMain.LuaPrint(Sender: TObject; AMsg: String);
+begin
+  ListBox1.Items.AddText(AMsg);
 end;
 
 function TfrmMain.BkptAtLine(ALine: LongInt): TSynEditMark;
@@ -502,10 +453,6 @@ begin
     end;
 end;
 
-function TfrmMain.HasBkptAtLine(ALine: LongInt): Boolean;
-begin
-  Result := BkptAtLine(ALine) <> Nil;
-end;
 
 procedure TfrmMain.ClearAllMarks;
 begin
@@ -516,37 +463,17 @@ end;
 function TfrmMain.DoCompile: Boolean;
 begin
   ListBox1.Clear;
-  Script.L := lua_newstate(@alloc, nil);
-  luaL_openlibs(Script.L);
-  lua_register(Script.L, 'print', @print);
-  Script.S := TStringList.Create;
-
-  RegisterAll(Script.L, Script.S);
-  if 0 < luaL_dostring(Script.L, PChar(Script.S.Text)) then
-  begin
-    ShowError('RegisterAll()');
-    ScriptFinalize(0);
-    Exit;
-  end;
-
-  Script.S.Clear;
-  Script.LOfs := 0; // offset of 1-st line
-  Script.S.Add(Editor.Text);
-  Script.Lt := lua_newthread(Script.L); // for yield/resume
-  lua_sethook(Script.Lt, @DbgHook, LUA_MASKLINE + LUA_MASKCALL + LUA_MASKRET, 0);
-  Result := (luaL_loadbuffer(Script.Lt, PChar(Script.S.Text),
-    Length(Script.S.Text), 'Lainz Code Studio') = 0);
-  Script.CallDepth := 0;
-  if not Result then
-    ShowError(lua_tostring(Script.Lt, -1)); // invalid source line
+  Script.SourceText := Editor.Text;
+  Script.SourceName := IfThen(FileName <> '', FileName, 'Noname');
+  Result := Script.Compile;
 end;
 
 procedure TfrmMain.DoRun(AStep: TScriptDbgStates);
 begin
-  if ssPaused in Script.State then
+  if Script.IsPaused then
     DoResume(AStep)
 
-  else if not(ssRunning in Script.State) then
+  else if not Script.IsRunning then
   begin
     if DoCompile then
       DoResume(AStep);
@@ -554,31 +481,8 @@ begin
 end;
 
 procedure TfrmMain.DoResume(AStep: TScriptDbgStates);
-var
-  stat: Integer;
 begin
-  Script.StopRq := False;
-  Script.ResetRq := False;
-  if ssStepOver in AStep then
-    Script.ReqDepth := Max(1, Script.CallDepth);
-  Script.State := AStep + [ssRunning];
-  ShowScriptState;
-  stat := lua_resume(Script.Lt, Script.Lt, 0);
-  if stat = LUA_YIELD_ then
-  begin
-    Exclude(Script.State, ssFreeRun);
-    Include(Script.State, ssPaused);
-    CaretPos(Script.SrcLine, 1);
-    ShowScriptState;
-    if Script.StopRq or Script.ResetRq then
-    begin
-      Script.StopRq := False;
-      if Script.ResetRq then
-        ScriptFinalize(stat);
-    end
-  end
-  else
-    ScriptFinalize(stat);
+  Script.Resume(AStep);
   Editor.Refresh;
   RefreshWatches;
   RefreshLocals;
@@ -586,182 +490,7 @@ end;
 
 procedure TfrmMain.DoStop(AReset: Boolean);
 begin
-  Script.StopRq := True;
-  Script.ResetRq := AReset;
-end;
-
-procedure TfrmMain.ShowError(AErrorMsg: String);
-var
-  Pre: String;
-begin
-  if Script.SrcLine < 1 then
-    Pre := 'Error: ' else
-    Pre := Format('Line %d: ', [Script.SrcLine]);
-  ListBox1.Items.Add(Pre + AErrorMsg);
-end;
-
-function TfrmMain.GetVarContents(AId: String): String;
-
-  function EvaLua(L: Plua_State; AExp: String): Integer;
-  begin
-    luaL_loadstring(L, PChar('return ' + AExp));
-    lua_pcall(L, 0, 1, 0);
-    Result := lua_type(L, -1);
-  end;
-
-begin
-  Result := '';
-  if not (ssRunning in Script.State) then
-    Exit;
-  EvaLua(Script.L, AId);
-  try
-    Result := LuaVarToString(Script.L);
-  finally
-    lua_pop(Script.L, 1);
-  end;
-end;
-
-function TfrmMain.LuaVarToString(L: Plua_State): String;
-
-  function AddQuoted(S: String): String;
-  var
-    C: Char;
-  begin
-    Result := '"';
-    for C in S do
-      if C in [#0, #7, #8, #9, #10, #11, #12, #13, '"', '''', '\'] then
-        case C of
-           #0: Result := Result + '\0';
-           #7: Result := Result + '\a';
-           #8: Result := Result + '\b';
-           #9: Result := Result + '\t';
-          #10: Result := Result + '\n';
-          #11: Result := Result + '\v';
-          #12: Result := Result + '\f';
-          #13: Result := Result + '\r';
-        otherwise
-          Result := Result + '\' + C;
-        end
-      else if C < ' ' then
-        Result := Result + '\' + RightStr('000' + IntToStr(Ord(C)), 3)
-      else
-        Result := Result + C;
-    Result := Result + '"';
-  end;
-
-  function VarToStr(L: Plua_State): String;
-  var
-    T: Integer;
-    S: String;
-  begin
-    T := lua_type(L, -1);
-    case T of
-      LUA_TSTRING:
-        S := AddQuoted(lua_tostring(L, -1));
-      LUA_TNUMBER:
-        S := lua_tostring(L, -1);
-      LUA_TNIL:
-        S := 'nil';
-      LUA_TBOOLEAN:
-        if lua_toboolean(L, -1) then
-          S := 'true' else
-          S := 'false';
-      otherwise
-        S := '(' + lua_typename(L, T) + ')';
-    end;
-    Result := S;
-  end;
-
-  function TblToStr(L: Plua_State; V: Integer): String;
-  var
-    N, T: Integer;
-    S: String;
-  begin
-    if V > MAX_TABLE_DEPTH then
-      Exit('(table)');
-
-    Result := '{';
-    N := 0;
-    lua_pushnil(L);
-    while lua_next(L, -2) <> 0 do
-      try
-        if N < 1 then
-        else if N < MAX_TABLE_N then
-          Result := Result + ', '
-        else
-        begin // do not print after n-th element
-          Result := Result + ', ...';
-          lua_pop(L, 1);
-          Break;
-        end;
-        Inc(N);
-
-        lua_pushvalue(L, -2);
-        try
-          S := Trim(ExtractWord(1, lua_tostring(L, -1), ID_DELIMITERS));
-          Result := Result + IfThen(S <> '', S, '?')  + ' => ';
-        finally
-          lua_pop(L, 1);
-        end;
-        if lua_istable(L, -1) then
-          Result := Result + TblToStr(L, V + 1) else
-          Result := Result + VarToStr(L);
-        if Length(Result) > MAX_TABLE_STRL then
-          if V > 1 then
-            Break else
-            Exit(Result + ' ...');
-      finally
-        lua_pop(L, 1);
-      end;
-    Result := Result + '}';
-  end;
-
-begin
-  Result := '';
-  if lua_istable(L, -1) then
-    Result := TblToStr(L, 1) else
-    Result := VarToStr(L);
-end;
-
-function TfrmMain.GetLocalContents(L: Plua_State; AVarArgs, ATemps: Boolean
-  ): String;
-var
-  ar: lua_Debug;
-  I: Integer;
-  LName: String;
-  PLName: PChar;
-
-  procedure L1(AInc: Integer; Temps: Boolean);
-  begin
-    I := AInc;
-    while True do
-    begin
-      PLName := lua_getlocal(L, @ar, I);
-      if PLName = Nil then
-        Break
-      else
-        try
-          LName := StrPas(PLName);
-          if not Temps and (LName[1] = '(') then
-            Continue;
-          Result := Result +
-            LName + ' = ' + LuaVarToString(L) + LineEnding;
-        finally
-          I := I + AInc;
-          lua_pop(Script.Lt, 1);
-        end;
-    end;
-  end;
-
-begin
-  Result := '';
-  if not (ssRunning in Script.State) then
-    Exit;
-  if lua_getstack(L, 0, @ar) <> 1 then
-    Exit;
-  if AVarArgs then
-    L1(-1, True);
-  L1(1, ATemps);
+  Script.Stop(AReset);
 end;
 
 procedure TfrmMain.RefreshWatches;
@@ -772,11 +501,11 @@ begin
   with frmWatches do
     for I := 0 to Pred(moWatches.Lines.Count) do
     begin
-      SID := Trim(ExtractWord(1, moWatches.Lines[I], ['=']{ID_DELIMITERS}));
-      if (SID = '') or not (SID[1] in ID_FIRST) then
+      SID := Trim(ExtractWord(1, moWatches.Lines[I], ['=']));
+      if (SID = '') or not (SID[1] in LUA_ID_FIRST) then
         Continue;
-      if (ssRunning in Script.State) then
-        Cont := GetVarContents(SID) else
+      if Script.IsRunning then
+        Cont := Script.GetVarContents(SID) else
         Cont := '(not running)';
       moWatches.Lines[I] := SID + ' = ' + Cont;
     end;
@@ -785,13 +514,13 @@ end;
 procedure TfrmMain.RefreshLocals;
 begin
   with frmLocals do
-    moLocals.Text := GetLocalContents(Script.Lt, True, False);
+    moLocals.Text := Script.GetLocalContents(True, False);
 end;
 
 function TfrmMain.CheckStopped: Boolean;
 begin
   Result := True;
-  if Script.State * [ssRunning, ssPaused] <> [] then
+  if  Script.IsRunning or Script.IsPaused then
   case QuestionDlg('', 'Program is running. Do you want to stop it?',
     mtWarning, [mrYes, 'Stop it', 'isdefault', mrCancel, 'Cancel'], 0)
   of
@@ -931,7 +660,7 @@ end;
 
 procedure TfrmMain.actPauseExecute(Sender: TObject);
 begin
-  Script.StopRq := True;
+  Script.Stop(False);
 end;
 
 procedure TfrmMain.actRefreshWatchesExecute(Sender: TObject);
@@ -951,9 +680,9 @@ end;
 
 procedure TfrmMain.actStopExecute(Sender: TObject);
 begin
-  if ssPaused in Script.State then
+  if  Script.IsPaused then
     ScriptFinalize(0) else
-    Script.ResetRq := True;
+    Script.Stop(True);
 end;
 
 procedure TfrmMain.actToggleBkptExecute(Sender: TObject);
@@ -975,12 +704,12 @@ begin
     Exit;
   for I := 1 to 10 do
   begin
-    SID := ExtractWord(I, S, ID_DELIMITERS);
+    SID := ExtractWord(I, S, LUA_ID_DELIMITERS);
     if SID = '' then
       Break;
-    if not (SID[1] in ID_FIRST) then
+    if not (SID[1] in LUA_ID_FIRST) then
       Continue;
-    Cont := GetVarContents(SID);
+    Cont := Script.GetVarContents(SID);
     if not frmWatches.Visible then
       actShowWatches.Execute;
     frmWatches.moWatches.Lines.Add(SID + ' = ' + Cont);
@@ -997,7 +726,7 @@ end;
 procedure TfrmMain.EditorSpecialLineColors(Sender: TObject; Line: integer;
   var Special: boolean; var FG, BG: TColor);
 begin
-  if HasBkptAtLine(Line) then
+  if BkptAtLine(Line) <> Nil then
   begin
     Special := True;
     if Line = Script.SrcLine then
@@ -1033,7 +762,7 @@ end;
 
 procedure TfrmMain.FormClose(Sender: TObject; var CloseAction: TCloseAction);
 begin
-  if ssRunning in Script.State then
+  if Script.IsRunning then
     ScriptFinalize(0);
 end;
 
