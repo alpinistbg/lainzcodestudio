@@ -276,6 +276,9 @@ begin
   lua_settable(FLState, LUA_REGISTRYINDEX);
 
   lua_register(FLState, 'print', @Print);
+  lua_register(FLState, 'test_a_js', @test_a_js);
+  lua_register(FLState, 'js_to_s', @js_to_s);
+
   FSrcLines := TStringList.Create;
 
   RegisterAll(FLState, FSrcLines);
