@@ -269,18 +269,15 @@ begin
   FLState := lua_newstate(@Alloc, nil);
   luaL_openlibs(FLState);
 
-  luaL_requiref(FLState, 'q64936405', @luaopen_q64936405, True);
-
+  // Keep Self pointer into the registry
   lua_pushlightuserdata(FLState, @ThisKey);
   lua_pushlightuserdata(FLState, Self);
   lua_settable(FLState, LUA_REGISTRYINDEX);
 
+  // Print function
   lua_register(FLState, 'print', @Print);
-  lua_register(FLState, 'test_a_js', @test_a_js);
-  lua_register(FLState, 'js_to_s', @js_to_s);
 
   FSrcLines := TStringList.Create;
-
   RegisterAll(FLState, FSrcLines);
   if 0 < luaL_dostring(FLState, PChar(FSrcLines.Text)) then
   begin
@@ -288,6 +285,7 @@ begin
     Finalize(0);
     Exit;
   end;
+  RegisterJsonTools(FLState);
 
   FSrcLines.Clear;
   FLOfs := 0; // offset of 1-st line

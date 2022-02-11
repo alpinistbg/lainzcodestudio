@@ -8,9 +8,11 @@ uses
   Classes, SysUtils, lua53, JsonTools;
 
 
-function luaopen_q64936405(L: Plua_State): Integer; cdecl;
-function test_a_js(L: Plua_State): Integer; cdecl;
-function js_to_s(L: Plua_State): Integer; cdecl;
+procedure RegisterJsonTools(L: Plua_State);
+
+function JsonToolsNew(L: Plua_State): Integer; cdecl;
+function JsonToolsAsJson(L: Plua_State): Integer; cdecl;
+function JsonToolsNull(L: Plua_State): Integer; cdecl;
 
 implementation
 
@@ -25,9 +27,120 @@ type
   PJsonUserData = ^TJsonUserData;
 
 var
-  MyNode: TJsonNode;
+  NullKey: Integer;
 
 {$push}{$implicitexceptions off} // Disable implicit exceptions ----------------
+
+function JsonNodeJson(N: TJsonNode): String;
+var
+  S: String;
+begin
+  S := N.AsJson;
+  // Fixup for the name at the front
+  if Assigned(N.Parent) and (N.Parent.Kind = nkObject) then
+    S := system.Copy(S, Pos('":{"', S) + 2);
+  Result := S;
+end;
+
+function IsArray(L: Plua_State; vix: Integer): Boolean;
+var
+  len: size_t;
+begin
+  //function isarray(t)
+  //  return #t > 0 and next(t, #t) == nil
+  //end
+  Result := False;
+  len := lua_rawlen(L, vix);
+  if len > 0 then
+  begin
+    lua_pushinteger(L, len);
+    Result := lua_next(L, vix) = 0;
+    if not Result then
+      lua_pop(L, 2); // pop k,v
+  end;
+end;
+
+procedure SetNode(L: Plua_State; ANode: TJsonNode; vix: Integer); forward;
+
+// Absolute index expected in vix
+procedure SetNodeTbl(L: Plua_State; ANode: TJsonNode; vix: Integer);
+var
+  A: Boolean;
+  S: String;
+begin
+  A := IsArray(L, vix);
+  if A then
+    ANode.AsArray else
+    ANode.AsObject;
+  lua_pushnil(L);
+  while lua_next(L, vix) <> 0 do
+    // Try block breaks on lua_error, leaks otherwise!
+    // luaL_checkudata() in SetNodeVal()
+    begin //try
+      if A then
+        SetNode(L, ANode.Add, -1)
+      else
+      begin
+        lua_pushvalue(L, -2);
+        try
+          S := lua_tostring(L, -1);
+        finally
+          lua_pop(L, 1);
+        end;
+        SetNode(L, ANode.Force(S), -1);
+      end;
+    //finally
+      lua_pop(L, 1);
+    end;
+end;
+
+// Absolute index expected in vix
+procedure SetNodeVal(L: Plua_State; ANode: TJsonNode; vix: Integer);
+var
+  LB: LongBool;
+  lI: lua_Integer;
+begin
+  if lua_isuserdata(L, vix) then
+  begin
+    if lua_touserdata(L, vix) = @NullKey then
+      ANode.AsNull
+    else
+      // TODO This one bangs when not the right userdata!
+      with PJsonUserData(luaL_checkudata(L, vix, MetaClassName))^ do
+        ANode.Value := JsonNodeJson(Node);
+  end
+  else
+  begin
+    case lua_type(L, vix) of
+      LUA_TSTRING:
+        ANode.AsString := lua_tostring(L, vix);
+      LUA_TNUMBER:
+        begin
+          lI := lua_tointegerx(L, vix, @LB);
+          if LB then
+            ANode.AsNumber := lI else
+            ANode.AsNumber := lua_tonumber(L, vix);
+        end;
+      LUA_TNIL:
+        ANode.AsNull;
+      LUA_TBOOLEAN:
+        ANode.AsBoolean := lua_toboolean(L, vix);
+      otherwise
+        luaL_argerror(L, vix, 'Incompatible assignment');
+    end;
+  end;
+end;
+
+procedure SetNode(L: Plua_State; ANode: TJsonNode; vix: Integer);
+begin
+  // Convert to absolute index as expected by SetNodeTbl/Val
+  vix := lua_absindex(L, vix);
+  if lua_istable(L, vix) then
+    SetNodeTbl(L, ANode, vix)
+  else
+    SetNodeVal(L, ANode, vix);
+end;
+
 
 function q64936405_len(L: Plua_State): Integer; cdecl;
 begin
@@ -119,113 +232,9 @@ function q64936405_newindex(L: Plua_State): Integer; cdecl;
 var
   K: lua_Integer;
   RawK: PAnsiChar;
-
-  function JsonNodeJson(N: TJsonNode): String;
-  var
-    S: String;
-  begin
-    S := N.AsJson;
-    // Fixup for the name at the front
-    if Assigned(N.Parent) and (N.Parent.Kind = nkObject) then
-      S := system.Copy(S, Pos('":{"', S) + 2);
-    Result := S;
-  end;
-
-  function IsArray(vix: Integer): Boolean;
-  var
-    len: size_t;
-  begin
-    //function isarray(t)
-    //  return #t > 0 and next(t, #t) == nil
-    //end
-    Result := False;
-    len := lua_rawlen(L, vix);
-    if len > 0 then
-    begin
-      lua_pushinteger(L, len);
-      Result := lua_next(L, vix) = 0;
-      if not Result then
-        lua_pop(L, 2); // pop k,v
-    end;
-  end;
-
-  procedure SetNode(ANode: TJsonNode; vix: Integer); forward;
-
-  // Absolute index expected in vix
-  procedure SetNodeTbl(ANode: TJsonNode; vix: Integer);
-  var
-    A: Boolean;
-    S: String;
-  begin
-    A := IsArray(vix);
-    if A then
-      ANode.AsArray else
-      ANode.AsObject;
-    lua_pushnil(L);
-    while lua_next(L, vix) <> 0 do
-      try
-        if A then
-          SetNode(ANode.Add, -1)
-        else
-        begin
-          lua_pushvalue(L, -2);
-          try
-            S := lua_tostring(L, -1);
-          finally
-            lua_pop(L, 1);
-          end;
-          SetNode(ANode.Force(S), -1);
-        end;
-      finally
-        lua_pop(L, 1);
-      end;
-  end;
-
-  // Absolute index expected in vix
-  procedure SetNodeVal(ANode: TJsonNode; vix: Integer);
-  var
-    LB: LongBool;
-    lI: lua_Integer;
-  begin
-    if lua_isuserdata(L, vix) then
-    begin
-      with PJsonUserData(luaL_checkudata(L, vix, MetaClassName))^ do
-        ANode.Value := JsonNodeJson(Node);
-    end
-    else
-    begin
-      case lua_type(L, vix) of
-        LUA_TSTRING:
-          ANode.AsString := lua_tostring(L, vix);
-        LUA_TNUMBER:
-          begin
-            lI := lua_tointegerx(L, vix, @LB);
-            if LB then
-              ANode.AsNumber := lI else
-              ANode.AsNumber := lua_tonumber(L, vix);
-          end;
-        LUA_TNIL:
-          ANode.AsNull;
-        LUA_TBOOLEAN:
-          ANode.AsBoolean := lua_toboolean(L, vix);
-        otherwise
-          luaL_argerror(L, vix, 'Incompatible assignment');
-      end;
-    end;
-  end;
-
-  procedure SetNode(ANode: TJsonNode; vix: Integer);
-  begin
-    // Convert to absolute index as expected by SetNodeTbl/Val
-    vix := lua_absindex(L, vix);
-    if lua_istable(L, vix) then
-      SetNodeTbl(ANode, vix)
-    else
-      SetNodeVal(ANode, vix);
-  end;
-
 begin
   with PJsonUserData(luaL_checkudata(L, 1, MetaClassName))^ do
+    // Numerical key
     if lua_isnumber(L, 2) then
     begin
       K := lua_tointeger(L, 2);
@@ -233,15 +242,16 @@ begin
         Node.AsArray;
       luaL_argcheck(L, (K >= 1) and (K <= Node.Count + 1), 2, 'Only in range 1..Count+1');
       if K = Node.Count + 1 then
-        SetNode(Node.Add, 3) else
-        SetNode(Node.Child(Pred(K)), 3);
+        SetNode(L, Node.Add, 3) else
+        SetNode(L, Node.Child(Pred(K)), 3);
     end
+    // String key
     else
     begin
       RawK := luaL_checklstring(L, 2, Nil);
       if Node.Kind <> nkObject then
         Node.AsObject;
-      SetNode(Node.Force(RawK), 3);
+      SetNode(L, Node.Force(RawK), 3);
     end;
   Exit(0);
 end;
@@ -291,71 +301,97 @@ begin
   Exit(3);
 end;
 
-function luaopen_q64936405(L: Plua_State): Integer; cdecl;
-var
-  PUD: PJsonUserData;
+procedure q64936405_create_metatable(L: Plua_State);
 begin
-  PUD := PJsonUserData(lua_newuserdata(L, SizeOf(TJsonUserData)));
-  PUD^.Node := MyNode;
-  PUD^.FreeMe := False;
+  if luaL_newmetatable(L, MetaClassName) = 1 then
+  begin
+    lua_pushcfunction(L, @q64936405_index);
+    lua_setfield(L, -2, '__index');
+    lua_pushcfunction(L, @q64936405_newindex);
+    lua_setfield(L, -2, '__newindex');
+    lua_pushcfunction(L, @q64936405_len);
+    lua_setfield(L, -2, '__len');
+    lua_pushcfunction(L, @q64936405_pairs);
+    lua_setfield(L, -2, '__pairs');
+    lua_pushcfunction(L, @q64936405_gc);
+    lua_setfield(L, -2, '__gc');
+    // TODO write __pairs and __ipairs
 
-  luaL_newmetatable(L, MetaClassName);
-  lua_pushcfunction(L, @q64936405_index);
-  lua_setfield(L, -2, '__index');
-  lua_pushcfunction(L, @q64936405_newindex);
-  lua_setfield(L, -2, '__newindex');
-  lua_pushcfunction(L, @q64936405_len);
-  lua_setfield(L, -2, '__len');
-  lua_pushcfunction(L, @q64936405_pairs);
-  lua_setfield(L, -2, '__pairs');
-  lua_pushcfunction(L, @q64936405_gc);
-  lua_setfield(L, -2, '__gc');
-  lua_setmetatable(L, -2);
-  // TODO write __pairs and __ipairs
-  Exit(1);
+  end;
+  lua_pop(L , 1); // Discard it from stack
 end;
 
-function test_a_js(L: Plua_State): Integer; cdecl;
+procedure RegisterJsonTools(L: Plua_State);
+
+  procedure RegisterFN(Name: string; FN: lua_CFunction);
+  var
+    reg: luaL_Reg;
+  begin
+    reg.Name := PChar(Name);
+    reg.func := FN;
+    luaL_setfuncs(L, reg, 0);
+  end;
+
+begin
+  // Create metatable with the required methods
+  q64936405_create_metatable(L);
+
+  // Register functions
+  lua_newtable(L);
+  RegisterFN('New', @JsonToolsNew);
+  RegisterFN('AsJson', @JsonToolsAsJson);
+  RegisterFN('null', @JsonToolsNull);
+  lua_setglobal(L, 'JsonTools');
+end;
+
+function JsonToolsNew(L: Plua_State): Integer; cdecl;
 var
   PUD: PJsonUserData;
-  S: String;
+  S, ErrorMsg: String;
   N: TJsonNode;
+  TableArg: Boolean;
 begin
   Result := 0;
-  S := luaL_checkstring(L, 1);
+  S := '{}'; // Defaults to an empty object
+  TableArg := False;
+  if lua_gettop(L) > 0 then
+  begin
+    if lua_isstring(L, 1) then
+      S := luaL_checkstring(L, 1)
+    else if lua_istable(L, 1) then
+      TableArg := True;  // Must assign it to a table
+  end;
   N := TJsonNode.Create;
   try
     N.Parse(S);
     PUD := PJsonUserData(lua_newuserdata(L, SizeOf(TJsonUserData)));
     PUD^.Node := N;
     PUD^.FreeMe := True;
-
-    if luaL_newmetatable(L, MetaClassName) = 1 then
-    begin
-      lua_pushcfunction(L, @q64936405_index);
-      lua_setfield(L, -2, '__index');
-      lua_pushcfunction(L, @q64936405_newindex);
-      lua_setfield(L, -2, '__newindex');
-      lua_pushcfunction(L, @q64936405_len);
-      lua_setfield(L, -2, '__len');
-      lua_pushcfunction(L, @q64936405_pairs);
-      lua_setfield(L, -2, '__pairs');
-      lua_pushcfunction(L, @q64936405_gc);
-      lua_setfield(L, -2, '__gc');
-    end;
-    lua_setmetatable(L, -2);
-
+    q64936405_create_metatable(L);
+    luaL_setmetatable(L, MetaClassName);
     Result := 1;
   except
     on E: Exception do
     begin
       N.Free;
-      luaL_error(L, PChar(E.Message));
+      // Don't call luaL_error() here, will mess up with the stack
+      ErrorMsg := E.Message; // Save the error message
     end;
+  end;
+  if Result = 0 then
+  begin
+    //luaL_error(L, PChar(ErrorMsg))
+    lua_pushnil(L);
+    lua_pushstring(L, ErrorMsg);
+    Exit(2);
+  end;
+  if TableArg then
+  begin
+    SetNode(L, N, 1);
   end;
 end;
 
-function js_to_s(L: Plua_State): Integer; cdecl;
+function JsonToolsAsJson(L: Plua_State): Integer; cdecl;
 begin
   with PJsonUserData(luaL_checkudata(L, 1, MetaClassName))^ do
   begin
@@ -364,13 +400,13 @@ begin
   end;
 end;
 
+function JsonToolsNull(L: Plua_State): Integer; cdecl;
+begin
+  lua_pushlightuserdata(L, @NullKey);
+  Exit(1);
+end;
+
 {$pop}// Restore $IMPLICITEXCEPTIONS value -------------------------------------
 
-initialization
-  MyNode := TJsonNode.Create;
-  MyNode.Parse('{"query":"calc","id":null,"result":{"ref":3,"gid":1,"card":"111111","state":17,"cardst":"subscription","prest":"unknown","crdprst":"out","vehst":"out","cellst":"vacant","preslist":[],"perlist":null,"translist":null,"sublist":[{"card":"111111","from":20220130000000,"to":20220228000000,"cell":"0000-001","cellcat":"Стандартно","floor":0,"inifee":0,"addfee":0,"depst":0,"regno":"CA6421KM","maker":"Алфа Ромео","model":"145","color":"Бежов","owner":0,"pegn":"111111    ","pname":"<няма>","plast":"<няма>","pcity":"<няма>","pstreet":"<няма>","pphone":"<няма>","pmobile":"","degn":"","dname":"","dlast":"","dcity":"","dstreet":"","dphone":"","dmobile":"","addit":""}],"transt":"","subst":"ok","debt":{"context":"FIX0","price":0,"cells":[["От","До","Дни","Часове","Сума"]],"items":null}}}');
-
-finalization
-  MyNode.Free;
 end.
 
