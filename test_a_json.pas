@@ -82,11 +82,8 @@ begin
       else
       begin
         lua_pushvalue(L, -2);
-        try
-          S := lua_tostring(L, -1);
-        finally
-          lua_pop(L, 1);
-        end;
+        S := lua_tostring(L, -1);
+        lua_pop(L, 1);
         SetNode(L, ANode.Force(S), -1);
       end;
     //finally
@@ -99,15 +96,19 @@ procedure SetNodeVal(L: Plua_State; ANode: TJsonNode; vix: Integer);
 var
   LB: LongBool;
   lI: lua_Integer;
+  PUD: PJsonUserData;
 begin
   if lua_isuserdata(L, vix) then
   begin
+    // = null()?
     if lua_touserdata(L, vix) = @NullKey then
       ANode.AsNull
     else
-      // TODO This one bangs when not the right userdata!
-      with PJsonUserData(luaL_checkudata(L, vix, MetaClassName))^ do
-        ANode.Value := JsonNodeJson(Node);
+    begin
+      PUD := PJsonUserData(luaL_testudata(L, vix, MetaClassName));
+      if Assigned(PUD) then
+        ANode.Value := JsonNodeJson(PUD^.Node);
+    end;
   end
   else
   begin
